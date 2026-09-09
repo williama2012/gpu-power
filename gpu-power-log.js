@@ -57,7 +57,7 @@ async function logGpuPower() {
 
   try {
     await collection.insertOne(record);
-    console.log(timestamp);
+    //console.log(timestamp);
   } catch (err) {
     console.error('MongoDB insert failed:', err.message);
   }
@@ -70,6 +70,8 @@ async function main() {
     db = client.db(dbName);
     collection = db.collection(collectionName);
     setInterval(logGpuPower, 1000);
+    console.log("GPU Power Logging Started");
+
   } catch (err) {
     console.error('MongoDB connection failed:', err.message);
     process.exit(1);
