@@ -1,21 +1,16 @@
 #!/usr/bin/env node
 
 const { execFileSync } = require("child_process");
-const fs = require("fs");
+const { MongoClient } = require("mongodb");
 const path = require("path");
 
-const LOG_DIR = __dirname;
-const LOG_FILE = path.join(LOG_DIR, "gpu-power.log");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
-function ensureLogDir() {
-  if (!fs.existsSync(LOG_DIR)) {
-    fs.mkdirSync(LOG_DIR, { recursive: true });
-  }
-}
+const uri = process.env.MONGODB_URI;
+const dbName = process.env.DB_NAME || "ai_logs";
+const collectionName = process.env.COLLECTION_NAME || "power_logs";
 
-function logGpuPower() {
-  ensureLogDir();
-
+async function logGpuPower() {
   let output;
   try {
     output = execFileSync("nvidia-smi", [
@@ -26,30 +21,47 @@ function logGpuPower() {
       timeout: 10000,
     });
   } catch (err) {
-    const ts = new Date().toISOString();
-    fs.appendFileSync(LOG_FILE, `[${ts}] ERROR: ${err.message}\n`);
     console.error("nvidia-smi failed:", err.message);
     process.exit(1);
   }
 
   const lines = output.trim().split("\n").filter(Boolean);
-  const ts = new Date().toISOString();
+  const timestamp = new Date();
 
   if (lines.length === 0) {
-    fs.appendFileSync(LOG_FILE, `[${ts}] No GPUs found.\n`);
     console.log("No GPUs detected.");
     return;
   }
 
+  const gpuName = [];
+  const gpuDraw = [];
+
   for (const line of lines) {
     const parts = line.split(",");
     if (parts.length >= 2) {
-      const name = parts[0].trim();
-      const power = parts[1].trim();
-      const entry = `[${ts}] ${name}: ${power} W\n`;
-      fs.appendFileSync(LOG_FILE, entry);
-      console.log(`${name}: ${power} W`);
+      gpuName.push(parts[0].trim());
+      gpuDraw.push(parseFloat(parts[1].trim()));
     }
+  }
+
+  const record = {
+    _id: timestamp.toISOString(),
+    timestamp: timestamp,
+    draw: gpuDraw.reduce((a, b) => a + b, 0),
+    gpu_name: gpuName,
+    gpu_draw: gpuDraw,
+  };
+
+  const client = new MongoClient(uri);
+
+  try {
+    await client.connect();
+    const db = client.db(dbName);
+    const collection = db.collection(collectionName);
+    await collection.insertOne(record);
+    console.log("Recorded:", JSON.stringify(record));
+  } finally {
+    await client.close();
   }
 }
 
