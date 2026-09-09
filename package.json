@@ -1,0 +1,20 @@
+{
+  "name": "gpu-power",
+  "version": "1.0.0",
+  "description": "Log GPU power usage",
+  "homepage": "https://github.com/williama2012/gpu-power#readme",
+  "bugs": {
+    "url": "https://github.com/williama2012/gpu-power/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/williama2012/gpu-power.git"
+  },
+  "license": "ISC",
+  "author": "William Allison",
+  "type": "commonjs",
+  "main": "gpu-power-log.js",
+  "scripts": {
+    "test": "node gpu-power-log.js"
+  }
+}
