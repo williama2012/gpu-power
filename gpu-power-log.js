@@ -13,9 +13,13 @@ const collectionName = process.env.COLLECTION_NAME || 'power_logs';
 let client;
 let db;
 let collection;
+let output;
+let lines = [];
+let gpuName = [];
+let gpuDraw = [];
+let intervalId;
 
 async function logGpuPower() {
-  let output;
   try {
     output = execFileSync('nvidia-smi', [
       '--query-gpu=name,power.draw',
@@ -29,16 +33,12 @@ async function logGpuPower() {
     return;
   }
 
-  const lines = output.trim().split('\n').filter(Boolean);
-  const timestamp = new Date();
-
+  lines = output.trim().split('\n').filter(Boolean);
+  
   if (lines.length === 0) {
     console.log('No GPUs detected.');
     return;
   }
-
-  const gpuName = [];
-  const gpuDraw = [];
 
   for (const line of lines) {
     const parts = line.split(',');
@@ -49,11 +49,16 @@ async function logGpuPower() {
   }
 
   const record = {
-    timestamp: timestamp,
+    timestamp: new Date(),
     draw: gpuDraw.reduce((a, b) => a + b, 0),
     gpu_name: gpuName,
     gpu_draw: gpuDraw,
   };
+
+  output = null;
+  lines = [];
+  gpuName = [];
+  gpuDraw = [];
 
   try {
     await collection.insertOne(record);
@@ -69,7 +74,7 @@ async function main() {
     await client.connect();
     db = client.db(dbName);
     collection = db.collection(collectionName);
-    setInterval(logGpuPower, 1000);
+    intervalId = setInterval(logGpuPower, 1000);
     console.log("GPU Power Logging Started");
 
   } catch (err) {
@@ -80,6 +85,10 @@ async function main() {
 
 const cleanup = async (signal) => {
   console.log(`Received ${signal}, shutting down...`);
+  if (intervalId) {
+    clearInterval(intervalId);
+    console.log("Interval cleared.");
+  }
   if (client) {
     await client.close();
     console.log('Database connection closed.');
