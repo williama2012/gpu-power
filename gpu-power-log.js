@@ -88,4 +88,5 @@ const cleanup = async (signal) => {
 process.on('SIGINT', () => cleanup('SIGINT'));
 process.on('SIGTERM', () => cleanup('SIGTERM'));
 
+process.title = "gpu power logging";
 main();
